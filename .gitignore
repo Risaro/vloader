@@ -3,7 +3,7 @@ build/*
 .idea/
 cmake-build-*/
 lib/libc_bridge/out/
-apk/
+/apk/
 tools/vitasdk-softfp/
 testgame/out/
 out/
