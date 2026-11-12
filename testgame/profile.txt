@@ -1,0 +1,16 @@
+name=Test Game
+so=libgame.so
+onload=1
+
+init=Java_com_vpkgj_test_Native_init env class width height
+frame=Java_com_vpkgj_test_Native_step env class
+touch=Java_com_vpkgj_test_Native_touch env class action x y
+key=Java_com_vpkgj_test_Native_key env class keycode down
+
+touch.down=1
+touch.up=0
+touch.move=2
+
+java.int.getRefreshRate=60
+java.string.getLanguage=ru
+java.string.getDataPath=@data
