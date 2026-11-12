@@ -134,6 +134,100 @@ static FILE __sF_fake[3];
 void *dlsym_soloader(void * handle, const char * symbol);
 
 extern so_module so_mod;
+extern void log_file_write(const char* s);
+
+#ifdef USE_SCELIBC_IO
+#define ORIG_FPUTS sceLibcBridge_fputs
+#define ORIG_FPUTC sceLibcBridge_fputc
+#define ORIG_FWRITE sceLibcBridge_fwrite
+#define ORIG_VFPRINTF sceLibcBridge_vfprintf
+#else
+#define ORIG_FPUTS fputs
+#define ORIG_FPUTC fputc
+#define ORIG_FWRITE fwrite
+#define ORIG_VFPRINTF vfprintf
+#endif
+
+static void* malloc_log(size_t size) {
+    void* p = malloc(size);
+    if (!p && size)
+        l_error("malloc(%u) failed", (unsigned)size);
+    return p;
+}
+
+static void* calloc_log(size_t n, size_t size) {
+    void* p = calloc(n, size);
+    if (!p && n && size)
+        l_error("calloc(%u, %u) failed", (unsigned)n, (unsigned)size);
+    return p;
+}
+
+static void* realloc_log(void* old, size_t size) {
+    void* p = realloc(old, size);
+    if (!p && size)
+        l_error("realloc(%u) failed", (unsigned)size);
+    return p;
+}
+
+static void* memalign_log(size_t align, size_t size) {
+    void* p = memalign(align, size);
+    if (!p && size)
+        l_error("memalign(%u, %u) failed", (unsigned)align, (unsigned)size);
+    return p;
+}
+
+static int is_std_stream(const void* f) {
+    return (uintptr_t)f >= (uintptr_t)&__sF_fake[0] && (uintptr_t)f < (uintptr_t)&__sF_fake[3];
+}
+
+static int fputs_std(const char* str, FILE* f) {
+    if (is_std_stream(f)) {
+        log_file_write(str);
+        return 0;
+    }
+    return ORIG_FPUTS(str, f);
+}
+
+static int fputc_std(int c, FILE* f) {
+    if (is_std_stream(f)) {
+        char b[2] = {(char)c, 0};
+        log_file_write(b);
+        return c;
+    }
+    return ORIG_FPUTC(c, f);
+}
+
+static size_t fwrite_std(const void* ptr, size_t size, size_t n, FILE* f) {
+    if (is_std_stream(f)) {
+        char b[1024];
+        size_t len = size * n;
+        if (len > sizeof(b) - 1)
+            len = sizeof(b) - 1;
+        memcpy(b, ptr, len);
+        b[len] = 0;
+        log_file_write(b);
+        return n;
+    }
+    return ORIG_FWRITE(ptr, size, n, f);
+}
+
+static int vfprintf_std(FILE* f, const char* fmt, va_list ap) {
+    if (is_std_stream(f)) {
+        char b[1024];
+        int len = vsnprintf(b, sizeof(b), fmt, ap);
+        log_file_write(b);
+        return len;
+    }
+    return ORIG_VFPRINTF(f, fmt, ap);
+}
+
+static int fprintf_std(FILE* f, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int r = vfprintf_std(f, fmt, ap);
+    va_end(ap);
+    return r;
+}
 
 static uintptr_t find_exidx(uintptr_t pc, int* count) {
     if (!so_mod.exidx_base || !so_mod.exidx_size) {
@@ -434,10 +528,10 @@ so_default_dynlib default_dynlib[] = {
 
 
         // Memory
-        { "calloc", (uintptr_t)&calloc },
+        { "calloc", (uintptr_t)&calloc_log },
         { "free", (uintptr_t)&free },
-        { "malloc", (uintptr_t)&malloc },
-        { "memalign", (uintptr_t)&memalign },
+        { "malloc", (uintptr_t)&malloc_log },
+        { "memalign", (uintptr_t)&memalign_log },
         { "memcmp", (uintptr_t)&memcmp },
         { "memcpy", (uintptr_t)&sceClibMemcpy },
         { "memmem", (uintptr_t)&memmem },
@@ -446,7 +540,7 @@ so_default_dynlib default_dynlib[] = {
         { "mmap", (uintptr_t)&mmap },
         { "__mmap2", (uintptr_t)&mmap },
         { "munmap", (uintptr_t)&munmap },
-        { "realloc", (uintptr_t)&realloc },
+        { "realloc", (uintptr_t)&realloc_log },
         { "valloc", (uintptr_t)&valloc },
 
 
@@ -481,15 +575,15 @@ so_default_dynlib default_dynlib[] = {
             { "fgetpos", (uintptr_t)&sceLibcBridge_fgetpos },
             { "fgets", (uintptr_t)&sceLibcBridge_fgets },
             { "fileno", (uintptr_t)&sceLibcBridge_fileno },
-            { "fputc", (uintptr_t)&sceLibcBridge_fputc },
-            { "fputs", (uintptr_t)&sceLibcBridge_fputs },
+            { "fputc", (uintptr_t)&fputc_std },
+            { "fputs", (uintptr_t)&fputs_std },
             { "fread", (uintptr_t)&sceLibcBridge_fread },
             { "freopen", (uintptr_t)&sceLibcBridge_freopen },
             { "fseek", (uintptr_t)&sceLibcBridge_fseek },
             { "fsetpos", (uintptr_t)&sceLibcBridge_fsetpos },
             { "ftell", (uintptr_t)&sceLibcBridge_ftell },
             { "fwide", (uintptr_t)&sceLibcBridge_fwide },
-            { "fwrite", (uintptr_t)&sceLibcBridge_fwrite },
+            { "fwrite", (uintptr_t)&fwrite_std },
             { "getc", (uintptr_t)&sceLibcBridge_getc },
             { "getwc", (uintptr_t)&sceLibcBridge_getwc },
             { "putc", (uintptr_t)&sceLibcBridge_putc },
@@ -508,15 +602,15 @@ so_default_dynlib default_dynlib[] = {
             { "fgetpos", (uintptr_t)&fgetpos },
             { "fgets", (uintptr_t)&fgets },
             { "fileno", (uintptr_t)&fileno },
-            { "fputc", (uintptr_t)&fputc },
-            { "fputs", (uintptr_t)&fputs },
+            { "fputc", (uintptr_t)&fputc_std },
+            { "fputs", (uintptr_t)&fputs_std },
             { "fread", (uintptr_t)&fread },
             { "freopen", (uintptr_t)&freopen },
             { "fseek", (uintptr_t)&fseek },
             { "fsetpos", (uintptr_t)&fsetpos },
             { "ftell", (uintptr_t)&ftell },
             { "fwide", (uintptr_t)&fwide },
-            { "fwrite", (uintptr_t)&fwrite },
+            { "fwrite", (uintptr_t)&fwrite_std },
             { "getc", (uintptr_t)&getc },
             { "getwc", (uintptr_t)&getwc },
             { "putc", (uintptr_t)&putc },
@@ -539,7 +633,7 @@ so_default_dynlib default_dynlib[] = {
         { "getcwd", (uintptr_t)&getcwd },
         { "lseek", (uintptr_t)&lseek },
         { "lseek64", (uintptr_t)&ret0 }, // TODO: implement or stub with warning
-        { "lstat", (uintptr_t)&lstat },
+        { "lstat", (uintptr_t)&stat_soloader },
         { "mkdir", (uintptr_t)&mkdir },
 #ifndef NDK_PORT
         { "pipe", (uintptr_t)&pipe },
@@ -575,15 +669,15 @@ so_default_dynlib default_dynlib[] = {
         { "swprintf", (uintptr_t)&swprintf },
 
         #ifdef USE_SCELIBC_IO
-            { "fprintf", (uintptr_t)&sceLibcBridge_fprintf },
+            { "fprintf", (uintptr_t)&fprintf_std },
             { "fscanf", (uintptr_t)&sceLibcBridge_fscanf },
             { "sscanf", (uintptr_t)&sceLibcBridge_sscanf },
-            { "vfprintf", (uintptr_t)&sceLibcBridge_vfprintf },
+            { "vfprintf", (uintptr_t)&vfprintf_std },
         #else
-            { "fprintf", (uintptr_t)&fprintf },
+            { "fprintf", (uintptr_t)&fprintf_std },
             { "fscanf", (uintptr_t)&fscanf },
             { "sscanf", (uintptr_t)&sscanf },
-            { "vfprintf", (uintptr_t)&vfprintf },
+            { "vfprintf", (uintptr_t)&vfprintf_std },
         #endif
 
 
