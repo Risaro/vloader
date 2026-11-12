@@ -100,6 +100,7 @@ void soloader_init_all() {
     so_flush_caches(&so_mod);
     l_success("SO caches flushed.");
 
+    l_info("exidx: base 0x%x size 0x%x", (unsigned)so_mod.exidx_base, (unsigned)so_mod.exidx_size);
     so_initialize(&so_mod);
     l_success("SO initialized.");
 

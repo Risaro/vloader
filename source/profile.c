@@ -95,6 +95,8 @@ bool profile_load(const char* path)
 
         if (!strcmp(k, "name"))
             copy(profile.name, sizeof(profile.name), v);
+        else if (!strcmp(k, "keep_apk"))
+            continue;
         else if (!strcmp(k, "so"))
             copy(profile.so, sizeof(profile.so), v);
         else if (!strcmp(k, "onload"))

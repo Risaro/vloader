@@ -133,6 +133,19 @@ static FILE __sF_fake[3];
 
 void *dlsym_soloader(void * handle, const char * symbol);
 
+extern so_module so_mod;
+
+static uintptr_t find_exidx(uintptr_t pc, int* count) {
+    if (!so_mod.exidx_base || !so_mod.exidx_size) {
+        if (count)
+            *count = 0;
+        return 0;
+    }
+    if (count)
+        *count = (int)(so_mod.exidx_size / 8);
+    return so_mod.exidx_base;
+}
+
 static int isfinite_bionic(double x) { return isfinite(x); }
 static int signbit_bionic(double x) { return signbit(x) ? 1 : 0; }
 static int fpclassifyd_bionic(double x) { return fpclassify(x); }
@@ -233,7 +246,7 @@ so_default_dynlib default_dynlib[] = {
         { "__cxa_rethrow", (uintptr_t)&__cxa_rethrow },
         { "__cxa_throw", (uintptr_t)&__cxa_throw },
         { "__cxa_type_match", (uintptr_t)&ret0 },
-        { "__gnu_Unwind_Find_exidx", (uintptr_t)&ret0 },
+        { "__gnu_Unwind_Find_exidx", (uintptr_t)&find_exidx },
         { "__gnu_ldivmod_helper", (uintptr_t)&__gnu_ldivmod_helper },
         { "__gnu_unwind_frame", (uintptr_t)&__gnu_unwind_frame },
         { "__google_potentially_blocking_region_begin", (uintptr_t)&ret0 },
