@@ -133,7 +133,38 @@ static FILE __sF_fake[3];
 
 void *dlsym_soloader(void * handle, const char * symbol);
 
+static int isfinite_bionic(double x) { return isfinite(x); }
+static int signbit_bionic(double x) { return signbit(x) ? 1 : 0; }
+static int fpclassifyd_bionic(double x) { return fpclassify(x); }
+static int umask_stub(int mask) { return 022; }
+static int pthread_attr_getschedparam_stub(const void* attr, int* param) { if (param) *param = 0; return 0; }
+
+struct iovec_bionic { void* base; size_t len; };
+
+static int writev_impl(int fd, const struct iovec_bionic* iov, int count) {
+    int total = 0;
+    for (int i = 0; i < count; i++) {
+        int r = write(fd, iov[i].base, iov[i].len);
+        if (r < 0)
+            return total ? total : r;
+        total += r;
+        if ((size_t)r < iov[i].len)
+            break;
+    }
+    return total;
+}
+
 so_default_dynlib default_dynlib[] = {
+        { "__fpclassifyd", (uintptr_t)&fpclassifyd_bionic },
+        { "__isfinite", (uintptr_t)&isfinite_bionic },
+        { "__signbit", (uintptr_t)&signbit_bionic },
+        { "clearerr", (uintptr_t)&clearerr },
+        { "div", (uintptr_t)&div },
+        { "modff", (uintptr_t)&modff },
+        { "pthread_attr_getschedparam", (uintptr_t)&pthread_attr_getschedparam_stub },
+        { "strptime", (uintptr_t)&strptime },
+        { "umask", (uintptr_t)&umask_stub },
+        { "writev", (uintptr_t)&writev_impl },
         // Common C/C++ internals
         { "_ZNSt8bad_castD1Ev", (uintptr_t)&_ZNSt8bad_castD1Ev },
         { "_ZNSt9exceptionD2Ev", (uintptr_t)&_ZNSt9exceptionD2Ev },

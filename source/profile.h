@@ -6,12 +6,13 @@
 
 #include <so_util/so_util.h>
 
-#define PROFILE_MAX_ARGS 8
+#define PROFILE_MAX_ARGS 12
+#define PROFILE_MAX_START 16
 #define PROFILE_MAX_JAVA 128
 
 typedef struct {
     char symbol[128];
-    char args[PROFILE_MAX_ARGS][24];
+    char args[PROFILE_MAX_ARGS][128];
     int argc;
     uintptr_t fn;
 } ProfileCall;
@@ -46,7 +47,9 @@ typedef struct {
     char so_path[256];
     int onload;
     int width, height;
-    ProfileCall init, frame, touch, key, analog, pause, resume;
+    ProfileCall start[PROFILE_MAX_START];
+    int start_count;
+    ProfileCall frame, touch, key, analog, pause, resume;
     int touch_down, touch_up, touch_move;
     ProfileJava java[PROFILE_MAX_JAVA];
     int java_count;

@@ -20,6 +20,8 @@
 #include <psp2/kernel/clib.h>
 #include <psp2/kernel/threadmgr.h>
 
+extern void log_file_write(const char* s);
+
 #define COLOR_RED     "\x1B[31m"
 #define COLOR_ORANGE  "\x1B[33m"
 #define COLOR_BLUE    "\x1B[34m"
@@ -53,7 +55,8 @@ static char _fjni_log_buffer_2[2048];
     va_start(list, fmt); \
     sceClibVsnprintf(_fjni_log_buffer_2, sizeof(_fjni_log_buffer_2) - 1, _fjni_log_buffer_1, list); \
     va_end(list); \
-    sceClibPrintf(_fjni_log_buffer_2);
+    sceClibPrintf(_fjni_log_buffer_2); \
+    log_file_write(_fjni_log_buffer_2);
 
 void _fjni_log_info(const char *fi, int li, const char *fn, const char* fmt, ...) {
 #if FALSOJNI_DEBUGLEVEL <= FALSOJNI_DEBUG_INFO

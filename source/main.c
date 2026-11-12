@@ -29,7 +29,11 @@ int main()
 
     gl_init();
 
-    profile_call(&profile.init, NULL);
+    for (int i = 0; i < profile.start_count; i++) {
+        l_info("start %d: %s", i, profile.start[i].symbol);
+        profile_call(&profile.start[i], NULL);
+    }
+    l_info("start calls done");
     profile_call(&profile.resume, NULL);
 
     while (1) {

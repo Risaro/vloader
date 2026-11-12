@@ -35,7 +35,7 @@ static char buffer_b[2048];
 static bool _log_file_started = false;
 static char buffer_c[2048];
 
-static void _log_file(const char* s) {
+void log_file_write(const char* s) {
     int flags = SCE_O_WRONLY | SCE_O_CREAT | (_log_file_started ? SCE_O_APPEND : SCE_O_TRUNC);
     static char log_path[320];
     if (!log_path[0])
@@ -104,7 +104,7 @@ void _log_print(int t, const char* fmt, ...) {
     sceClibVsnprintf(buffer_b, sizeof(buffer_b), buffer_a, list);
     va_end(list);
     sceClibPrintf(buffer_b);
-    _log_file(buffer_b);
+    log_file_write(buffer_b);
 
     if (atomic_load_explicit(&_log_mutex_ready, memory_order_relaxed)) {
         sceKernelUnlockLwMutex(&_log_mutex, 1);
